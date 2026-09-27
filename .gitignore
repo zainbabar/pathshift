@@ -1,0 +1,20 @@
+# Python / uv
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+
+# Data and model weights (never commit)
+data/
+checkpoints/
+*.npz
+*.pt
+*.pth
+
+# Local exploration
+notebooks/
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.vscode/
