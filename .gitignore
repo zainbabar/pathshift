@@ -11,10 +11,11 @@ checkpoints/
 *.pt
 *.pth
 
-# Local exploration
-# notebooks/
-# .ipynb_checkpoints/
+# testing / exploration before proper py modules
+prototype.ipynb
+.ipynb_checkpoints/
 
 # OS / editor
 .DS_Store
 .vscode/
+
