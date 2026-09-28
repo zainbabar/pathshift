@@ -12,8 +12,8 @@ checkpoints/
 *.pth
 
 # Local exploration
-notebooks/
-.ipynb_checkpoints/
+# notebooks/
+# .ipynb_checkpoints/
 
 # OS / editor
 .DS_Store
