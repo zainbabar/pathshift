@@ -30,7 +30,7 @@ Then I corrupted the test images with noise, reduced contrast, and blur at 5 sev
 
 Chance is 11.1% (1 in 9 classes).
 
-- Accuracy drops pretty linearly for all three corruptions as the severity gets worse.
+- Accuracy drops steadily for all three corruptions as the severity gets worse, and it drops faster at the higher severities for noise and contrast.
 - Contrast reduction hurts the most at high severity, down to 23.5%, which isn't far off chance.
 - The model is very sensitive to noise. At severity 5 the noise has a standard deviation of only 0.06 (on pixels in [0, 1]), which is barely visible, and it still costs over 40 points.
 - The real shift already shows up on clean test data. The corruptions are more like a test of a *broken* sensor than a *different* one, so they're a harsher stress test on top of that.
@@ -53,7 +53,7 @@ Severity 4 and 5 are 100% at both batch sizes.
 
 - The false alarm rate is right where it should be. Clean val batches come from the same distribution as the reference, so any alarm there is a false alarm. It's 3-5%, which matches the 0.05 threshold. This is the most important number here, since a detector that always raised an alarm would also get 100% on every corruption.
 - It catches the real shift if the batch is big enough. With 200 images it flagged the clinical center shift every time, but with 50 it only caught it 37% of the time.
-- It's very sensitive. With batches of 200, severity 1 still got flagged 35-61% of the time, even though it only costs about 1-2 points of accuracy. MMD tells you the images look *different*, which isn't the same as the model doing *worse*.
+- It's very sensitive. With batches of 200, severity 1 still got flagged 35-61% of the time, even though it only costs about 1-2 points of accuracy. So MMD flags that the images look different, even when the model is barely doing any worse.
 - Batch size is a tradeoff. Small batches give you an answer after fewer scans, but only catch big shifts. Big batches catch subtle shifts, including ones that barely hurt accuracy.
 
 ## What I did
@@ -66,7 +66,7 @@ According to the MedMNIST paper, PathMNIST's train and val images come from NCT-
 
 ### Starting with an MLP
 
-I started with a simple MLP (2 hidden layers, ReLU) to get the whole pipeline working end to end: data loaders, training loop, evaluation. It got 56.3% validation accuracy. I tuned the learning rate and hidden layer sizes with Optuna, which only got it to 61.9%, so I moved on to a CNN.
+I started with a simple MLP (2 hidden layers, ReLU) to get the whole pipeline working end to end: data loaders, training loop, evaluation. It got 56.3% validation accuracy. I tuned the learning rate and hidden layer sizes with Optuna, which only got it to 61.9%, so I moved on to a CNN. (The MLP was all in my exploration notebook, which isn't included in the repo.)
 
 ### The CNN
 
@@ -79,7 +79,7 @@ Flatten -> Linear(3136 -> 128) -> ReLU -> Linear(128 -> 9)
 ```
 
 - All the conv layers use 3x3 kernels, stride 1, and `same` padding, so they keep the spatial size the same. Only the pooling layers shrink it.
-- Each max pool keeps the biggest value in every 2x2 block, halving the height and width. After each pool I double the channels, since the layers can encode richer features while the image gets smaller.
+- Each max pool keeps the biggest value in every 2x2 block, halving the height and width. After the first pool I double the channels (32 -> 64), since the layers can encode richer features while the image gets smaller.
 - The first linear layer takes 7 x 7 pixels x 64 channels = 3136 inputs.
 - The output layer gives 9 raw logits with no softmax, because `CrossEntropyLoss` computes the loss straight from the logits.
 
@@ -110,7 +110,7 @@ The evaluation follows a few rules:
 - Every corruption and severity runs on the same test images, and the seed gets reset before each run so the random noise is identical every time.
 - Clean test accuracy is the baseline everything gets compared to.
 
-I picked the severity values on the validation set, so that accuracy drops gradually instead of collapsing between two levels. My first noise levels (std 0.04 to 0.20) sent the model to near chance by severity 3.
+I picked the severity values by hand. I tried some values, evaluated them on the validation set, and then fine-tuned the levels so accuracy drops nicely instead of crashing straight down to chance. My first noise levels (std 0.04 to 0.20) sent the model to near chance by severity 3.
 
 ### Shift detection with MMD
 
@@ -139,17 +139,13 @@ The experiment:
 - The images are only 28x28, so this is a lot less detail than real pathology slides.
 - The corruptions are simple synthetic stand-ins for real scanner problems, not measurements of real ones.
 - Every number comes from one training run with one seed, so there are no error bars.
+- Accuracy is averaged over batches, so the smaller last batch counts as much as a full one. The exact clean accuracies are 94.1% val and 85.5% test (an 8.6 point gap instead of 8.8).
 - Severity levels are my own choice (tuned on validation data), so "severity 5" only means something next to the values in the table above.
 - The val/test gap mixes everything that differs between the two clinical centers (staining, scanner, patients), so it shows that a shift exists but not what caused it.
 - The detector raises a false alarm on about 5% of clean batches, which adds up if you're checking batches all day (roughly one false alarm every 20 batches). In practice you'd want a lower threshold, or only raise an alarm after a few flagged batches in a row.
 - MMD only tells you the incoming images look different. It can't tell you if accuracy actually dropped, and it also flags changes that barely hurt the model.
 - The detection results use corrupted validation images, but the accuracy results use corrupted test images, so comparing the two is only rough.
 - I only tested the detector at two batch sizes (50 and 200).
-
-## Continuations
-To improve on this project, I have a few continuations I'd like to implement.
-1. **Data augmentation:** Augment the data using 1 or 2 of the corruption functions and adding corrupted copies to the training set. Then test on the function that the model hasn't seen before. This could plausibly increase accuracy on corrupted images by making the model more resilient to poor quality images. I'd also compare with the validation accuracy, to see if it changed. We could also introduce new corruptions, like colour and stain.
-2. **Comparing against a KS detector:** Run Kolmogorov-Smirnov tests on the model's softmax outputs (one test per class, Bonferroni corrected), and compare how well it detects shift against MMD, like in the *Failing Loudly* paper.
 
 ## How to run
 

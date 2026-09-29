@@ -1,7 +1,7 @@
 [project]
 name = "pathshift"
 version = "0.1.0"
-description = ""
+description = "How robust a CNN pathology classifier is to scanner-like shift, and detecting that shift without labels"
 readme = "README.md"
 authors = [{ name = "Zain Babar" }]
 requires-python = ">=3.11"
@@ -9,7 +9,6 @@ dependencies = [
     "matplotlib>=3.8",
     "medmnist>=3.0",
     "numpy>=1.26",
-    "optuna>=5.0.0",
     "torch>=2.4",
     "torchmetrics>=1.9.0",
     "torchvision>=0.19",
@@ -18,6 +17,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ipykernel>=6.29",
+    "optuna>=5.0.0",
 ]
 
 [build-system]
